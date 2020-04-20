@@ -21,6 +21,10 @@ import numpy as np
 trn = pd.read_csv('input/train_ver2.csv')
 # -
 
+# ## 기초 통계
+#
+# ### 기초 통계로 데이터 살펴보기
+#
 # 데이터의 크기 / 첫 5줄 확인
 #
 # - 총 13,647,309개의 고객 데이터
@@ -40,7 +44,7 @@ for col in trn.columns:
 # - age        : 역시 데이터 타입이 object로 전처리 과정에서 int 타입으로 변환이 필요하다.
 # - renta      : 가구 총 수입을 나타냄. 5번째 열에서 NaN이 보임. 전처리 과정에서 이와 같은 결측값에 대한 변환도 필요하다.
 
-# ### TIP 2-2 탐색적 데이터 분석을 통해 우리가 얻고자 하는 것?
+# ### TIP 탐색적 데이터 분석을 통해 우리가 얻고자 하는 것?
 #
 # > 새로 접하는 데이터에 대한 첫 분석 과정에서 데이터의 모든 것을 이해하려고 할 필요 없음!
 # 랜덤하게 일부 행을 눈으로 살펴보며 단계적으로 데이터에 익숙해지려고 해보자
@@ -153,5 +157,146 @@ for col in cat_cols:
     uniq = np.unique(trn[col].astype(str))
     print('-' * 50)
     print(f'# col {col}, n_uniq {len(uniq)}, uniq{uniq}')
+
+# ## 시각화
+#
+# ### 막대 그래프로 데이터 살펴보기
+#
+# 데이터 시각화를 위하여 **matplotlib** 와 **seaborn** 라이브러리 사용
+#
+# Jupyter Notebook에서 시각화하려면 그래프를 Notebook 내부에 출력하도록 다음과 같이 설정해야 한다.
+
+# +
+import matplotlib
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+#jupyter notebook 내부에 그래프를 출력하도록 설정
+# %matplotlib inline
+# -
+
+# 각 변수에 대하여 막대 그래프(Histogram)를 그려본다.
+#
+# 고객 고유 식별 번호인 'ncodpers'와 총 수입을 나타내는 'renta' 두 변수는 고유값이 너무 많아 시각화에 시간이 너무 많이 소요되므로, 이번 시각화에서는 건너뛰도록 설정한다.
+
+# +
+wanted_cols = ['fecha_dato', 'indrel_1mes', 'age', 'antiguedad', 'fecha_alta', 'conyuemp']
+
+for col in trn.columns:
+    if col in wanted_cols:
+        # 보기 편하게 영역 구분과 변수명을 출력한다.
+        print('-' * 50)
+        print('col : ', col)
+
+        # 그래프 크기를(figsize) 설정한다.
+        f, ax = plt.subplots(figsize=(20, 15))
+        # seaborn을 사용한 막대 그래프 생성
+        sns.countplot(x=col, data=trn, alpha=0.5)
+        plt.show()
+# -
+
+# 제품 변수 24개와 고객변수 24개, 총 48개의 변수 중에서 대표적으로 6개를 살펴본다.
+#
+# - fecha_dato : 
+# > 15년 1월 ~ 6월 즉, 첫 6개월은 고객 데이터 개수가 같다.
+# > 15년 7월부터 매달 고객 데이터가 증가한다
+#
+# - age, antiguedad :
+# > 수치형 변수인 나이(age), 거래 누적 기간(antiguedad) 분포가 중간에 뚝 끊겨있다.
+# >
+# > object 형태로 저장되어 있어 데이터 정제가 필요하다.
+# > age의 경우 아래 숫자가 0~100 크기로 정렬되어 있지 않다.
+#
+# - fecha_alta :
+# > 고객이 은행과 첫 계약을 체결한 날짜 데이터이다.
+# > 1995 ~ 2016년 까지 폭 넓은 값을 가진다.
+# >
+# > 1995년 부근과 2016년 부근이 높은 빈도를 보이는 것으로 보아 장기 고객과 신규 고객의 비율이 높아 보인다.
+#
+# - indrel_1mes :
+# > 월초 기준 고객 등급을 의미하는 변수
+# >
+# > 변수 설명서에 따르면 수치형 (1, 2, 3, 4)와 범주형 (P) 값이 섞여 있다.
+# > 하지만 그래프에는 (1.0, 1.0, 1) 세 개의 동일한 값이 별로도 표시되어 있다. (데이터 정제 필요)
+#
+# - conyuemp:
+# > 배우자 지표
+# > 
+# > 이번 경진대회 데이터에는 conyuemp와 같은 이진 변수가 많이 존재한다.
+
+# ### 시계열 데이터 시각화
+#
+# 앞선 막대 그래프 시각화는 시계열성을 고려하지 않고, 1년 6개월치 데이터를 하나로 뭉쳐 시각화를 시도한 것이다.
+#
+# 그러나, 시계열 데이터를 올바르게 분석하려면 시간에 따른 변화 척도를 눈에 볼 수 있도록 분석해야 한다.
+#
+# 특히, 이전 변수인 24개의 제품 변수에 대해서는 앞선 막대 그래프 시각화로는 큰 의미를 도출해 내기가 어려운 것이 사실이다.
+#
+# 이번 경진대회의 목표는 **금융 제품 추천** 이다.
+#
+# 예측 해야하는 정답값, 즉 24개의 제품 변수에 대한 이해를 높이는 것은 매우 중요하다.
+#
+#
+# #### 누적 막대 그래프
+#
+# 가장 쉽게 접근할 수 있는 방법으로, 월별 제품 변수의 합을 누적 막대 그래프 형태로 시각화해보는 것이다.
+#
+# 제품을 보유하고 있을 때는 값이 1이고, 보유하고 있지 않을 때에는 값이 0이다.
+#
+# 이는 서로 다른 제품 간의 차이를 함께 시각화하기 위함이다.
+#
+# ..
+#
+# **월별 금융 제품 보유 데이터(절대값)**
+
+# +
+# 날짜 데이터를 기준으로 분석하기 위하여, 날짜 데이터 별도로 추출한다.
+months = trn['fecha_dato'].unique().tolist()
+label_cols = trn.columns[24:].tolist()
+
+label_over_time = []
+for i in range(len(label_cols)):
+    label_sum = trn.groupby(['fecha_dato'])[label_cols[i]].agg('sum')
+    label_over_time.append(label_sum.tolist())
+    
+label_sum_over_time = []
+for i in range(len(label_cols)):
+    label_sum_over_time.append(np.asarray(label_over_time[i:]).sum(axis=0))
+    
+# 시각화를 위한 색깔 지정
+color_list = ['#F5B7B1','#D2B4DE','#AED6F1','#A2D9CE','#ABEBC6','#F9E79F','#F5CBA7','#CCD1D1']
+
+f, ax = plt.subplots(figsize=(30, 15))
+for i in range(len(label_cols)):
+    # x축 : 월 데이터
+    # y축 : 누적 총합
+    sns.barplot(x=months, y=label_sum_over_time[i], color=color_list[i%8], alpha=0.7)
+    
+# 우측 상단에 legend 추가
+plt.legend([plt.Rectangle((0,0), 1, 1, fc=color_list[i%8], edgecolor='none') for i in range(len(label_cols))], label_cols, loc=1, ncol=2, prop={'size':16})
+# -
+
+# 총 제품 보유 수량이 매달마다 조금씩 상승하고 있는 것을 확인할 수 있다. 고객의 숫자가 꾸준히 늘어나고 있기 때문으로 보인다.
+#
+# 제품 간 비율을 확인하기 위해 절댓값이 아닌 상대값으로 시각화를 시도해보자.
+#
+# ..
+#
+# **월별 금융 제품 보유 데이터(상대값)**
+
+# +
+# 월마다 최대값으로 나누고 100을 곱해준다
+label_sum_percent = (label_sum_over_time / (1.*np.asarray(label_sum_over_time).max(axis=0))) * 100
+
+f, ax = plt.subplots(figsize=(30, 15))
+for i in range(len(label_cols)):
+    sns.barplot(x=months, y=label_sum_percent[i], color=color_list[i%8], alpha=0.7)
+    
+plt.legend([plt.Rectangle((0,0), 1, 1, fc=color_list[i%8], edgecolor='none') for i in range(len(label_cols))], label_cols, loc=1, ncol=2, prop={'size':16})
+# -
+
+# 'ind_cco_fin_ult1' 제품의 보유량이 계절에 상관없이 꾸준히 높은 것을 확인할 수 있고, 다른 제품의 비율도 1년 6개월 간 큰 변화 없이 꾸준해 보인다.
+#
+# 아쉽게도 눈에 띄는 변화 혹은 패턴을 찾기가 어렵다.
 
 
