@@ -319,6 +319,93 @@ plt.legend([plt.Rectangle((0,0), 1, 1, fc=color_list[i%8], edgecolor='none') for
 
 아쉽게도 눈에 띄는 변화 혹은 패턴을 찾기가 어렵다.
 
+
+#### '신규 구매' 여부
+
+훈련 데이터와 같은 row 크기를 가지며, 24개의 column은 각 24개의 금융 제품의 신규 구매 여부를 의미하는 **'labels.csv'** 파일을 생성한다.
+
+```{python}
+# 제품 변수를 prods에 list형태로 저장한다
+prods = trn.columns[24:].tolist()
+
+# 날짜를 숫자로 변환하는 함수이다. 2015-01-28은 1, 2016-06-28은 18로 변환된다
+def date_to_int(str_date):
+    Y, M, D = [int(a) for a in str_date.strip().split("-")]
+    int_date = (int(Y) - 2015) * 12 + int(M)
+    return int_date
+
+# 날짜를 숫자로 변환하여 int_date에 저장한다
+trn['int_date'] = trn['fecha_dato'].map(date_to_int).astype(np.int8)
+
+# 데이터를 복사하고, int_date 날짜에 1을 더하여 lag를 생성한다. 변수명에 _prev를 추가한다.
+trn_lag = trn.copy()
+trn_lag['int_date'] += 1
+trn_lag.columns = [col + '_prev' if col not in ['ncodpers', 'int_date'] else col for col in trn.columns]
+
+# 원본 데이터와 lag 데이터를 ncodper와 int_date 기준으로 합친다. Lag 데이터의 int_date는 1 밀려있기 때문에, 저번달의 제품 정보가 삽입된다.
+df_trn = trn.merge(trn_lag, on=['ncodpers','int_date'], how='left')
+
+# 메모리 효율을 위해 불필요한 변수를 메모리에서 제거한다
+del trn, trn_lag
+
+# 저번달의 제품 정보가 존재하지 않을 경우를 대비하여 0으로 대체한다.
+for prod in prods:
+    prev = prod + '_prev'
+    df_trn[prev].fillna(0, inplace=True)
+
+# 원본 데이터에서의 제품 보유 여부 – lag데이터에서의 제품 보유 여부를 비교하여 신규 구매 변수 padd를 구한다
+for prod in prods:
+    padd = prod + '_add'
+    prev = prod + '_prev'
+    df_trn[padd] = ((df_trn[prod] == 1) & (df_trn[prev] == 0)).astype(np.int8)
+
+# 신규 구매 변수만을 추출하여 labels에 저장한다.
+add_cols = [prod + '_add' for prod in prods]
+labels = df_trn[add_cols].copy()
+labels.columns = prods
+labels.to_csv('input/labels.csv', index=False)
+```
+
+생성된 'labels.csv' 파일을 기반으로 시계열성 시각화를 다시 시도해보자.
+
+앞선 코드와 비슷하지만 이번에는 합을 계산하는 기준이 '신규 구매 데이터' 이다.
+
+```{python}
+# labels = pd.read_csv('input/labels.csv').astype(int)
+fecha_dato = pd.read_csv('input/train_ver2.csv', usecols=['fecha_dato'])
+
+labels['date'] = fecha_dato.fecha_dato
+months = np.unique(fecha_dato.fecha_dato).tolist()
+label_cols = labels.columns.tolist()[:24]
+
+label_over_time = []
+for i in range(len(label_cols)):
+    label_over_time.append(labels.groupby(['date'])[label_cols[i]].agg('sum').tolist())
+    
+label_sum_over_time = []
+for i in range(len(label_cols)):
+    label_sum_over_time.append(np.asarray(label_over_time[i:]).sum(axis=0))
+    
+color_list = ['#F5B7B1','#D2B4DE','#AED6F1','#A2D9CE','#ABEBC6','#F9E79F','#F5CBA7','#CCD1D1']
+
+f, ax = plt.subplots(figsize=(30, 15))
+for i in range(len(label_cols)):
+    sns.barplot(x=months, y=label_sum_over_time[i], color = color_list[i%8], alpha=0.7)
+    
+plt.legend([plt.Rectangle((0,0),1,1,fc=color_list[i%8], edgecolor = 'none') for i in range(len(label_cols))], label_cols, loc=1, ncol = 2, prop={'size':16})
+```
+
+```{python}
+label_sum_percent = (label_sum_over_time / (1.*np.asarray(label_sum_over_time).max(axis=0))) * 100
+
+f, ax = plt.subplots(figsize=(30, 15))
+for i in range(len(label_cols)):
+    sns.barplot(x=months, y=label_sum_percent[i], color = color_list[i%8], alpha=0.7)
+    
+plt.legend([plt.Rectangle((0,0),1,1,fc=color_list[i%8], edgecolor = 'none') for i in range(len(label_cols))], \
+           label_cols, loc=1, ncol = 2, prop={'size':16})
+```
+
 ```{python}
 
 ```
