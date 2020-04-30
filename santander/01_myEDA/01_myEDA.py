@@ -18,7 +18,7 @@
 import pandas as pd
 import numpy as np
 
-trn = pd.read_csv('input/train_ver2.csv')
+trn = pd.read_csv('../input/train_ver2.csv')
 # -
 
 # ## 기초 통계
